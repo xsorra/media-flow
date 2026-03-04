@@ -1,0 +1,78 @@
+Media Downloader – Chrome Extension
+Last Updated: March 3, 2026
+
+1. Overview
+
+Media Downloader is a Chrome extension that allows users to detect and download media files (images, videos, audio files, and SVGs) from the currently active webpage.
+
+We are committed to protecting your privacy. This extension does not collect, store, transmit, or sell any personal data.
+
+⸻
+
+2. Information We Collect
+
+We do not collect any personal information.
+
+Specifically:
+	•	We do not collect names, email addresses, or contact details
+	•	We do not collect browsing history
+	•	We do not track user activity
+	•	We do not collect analytics or usage data
+	•	We do not use cookies
+	•	We do not use tracking technologies
+
+The extension only processes webpage content locally within your browser to detect media files when you activate it.
+
+⸻
+
+3. How the Extension Works
+
+When you click the extension:
+	•	It temporarily accesses the currently active tab
+	•	It scans the page for media elements (images, videos, audio, SVG files)
+	•	It displays detected media for you to download
+	•	Downloads are initiated only when you choose to download a file
+
+All processing occurs locally in your browser. No data is sent to external servers.
+
+⸻
+
+4. Permissions Explanation
+
+The extension may request the following permissions:
+	•	activeTab – To access the currently active page when you click the extension
+	•	scripting – To scan the page for media elements
+	•	downloads – To save selected media files to your device
+
+These permissions are used strictly for the extension’s core functionality and for no other purpose.
+
+⸻
+
+5. Remote Code
+
+This extension does not use remote code.
+All functionality is contained within the packaged extension files.
+
+⸻
+
+6. Data Sharing
+
+We do not:
+	•	Sell data
+	•	Share data
+	•	Transfer data
+	•	Store data externally
+
+Because no personal data is collected, no data is shared with third parties.
+
+⸻
+
+7. Data Security
+
+Since the extension does not collect or store user data, there is no personal data retained or stored on external servers.
+
+⸻
+
+8. Changes to This Policy
+
+If functionality changes in the future, this Privacy Policy will be updated accordingly. The updated version will be published with a new effective date.
