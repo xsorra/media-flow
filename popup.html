@@ -27,7 +27,7 @@
     body::-webkit-scrollbar-track { background: transparent; }
     body::-webkit-scrollbar-thumb { background: rgba(168, 85, 247, 0.25); border-radius: 3px; }
     .mesh-bg { position: fixed; inset: 0; z-index: -1; background-color: var(--bg); background-image: radial-gradient(at 15% 20%, #e0c3fcb0 0px, transparent 50%), radial-gradient(at 85% 15%, #f5c6d0b0 0px, transparent 50%), radial-gradient(at 50% 75%, #d8c5f0b0 0px, transparent 50%); filter: blur(40px); }
-    .container { padding: 16px; position: relative; }
+    .container { padding: 24px; position: relative; }
     header { margin-bottom: 24px; }
     .nav-logo { font-size: 10px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); display: flex; align-items: center; gap: 7px; margin-bottom: 8px; }
     .nav-logo-dot { width: 7px; height: 7px; background: var(--blue); border-radius: 50%; }
@@ -107,6 +107,11 @@
 <body>
   <div class="mesh-bg"></div>
   <div class="container">
+
+    <header>
+      <div class="nav-logo"><div class="nav-logo-dot"></div>Capture All Assets</div>
+      <h1>Media<em>Flow</em></h1>
+    </header>
 
     <div class="stats-bar" id="statsBar" style="display:none;">
       <div class="stat-chip active" data-tab="all"><div class="stat-icon all-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></div><div class="stat-text"><div class="stat-count" id="allCount">0</div><div class="stat-label">All</div></div></div>

@@ -61,8 +61,46 @@ async function extractMedia() {
   function getExt(url) { try { return new URL(url, location.href).pathname.split(".").pop().toLowerCase().split("?")[0]; } catch(e) { return ""; } }
   function getFilename(url) { try { return new URL(url, location.href).pathname.split("/").pop() || "unknown"; } catch(e) { return "unknown"; } }
   function resolveUrl(src) { try { return new URL(src, location.href).href; } catch(e) { return null; } }
+  function stripResizeParams(url) {
+    try {
+      var u = new URL(url);
+      var isShopify = u.hostname.indexOf("shopify.com") !== -1 || u.pathname.indexOf("/cdn/shop/") !== -1;
+
+      if (isShopify) {
+        // Shopify CDN: strip all resize params to get the original upload
+        u.searchParams.delete("width");
+        u.searchParams.delete("height");
+        u.searchParams.delete("crop");
+        // Shopify filename sizes: _312x or _312x468 or _grande/_large etc
+        u.pathname = u.pathname.replace(/_\d+x\d*(\.\w+)$/, "$1");
+        u.pathname = u.pathname.replace(/_(?:pico|icon|thumb|small|compact|medium|large|grande|original|master|\d+x\d+)(\.\w+)$/, "$1");
+        return u.href;
+      }
+
+      // Generic CDN: maximize or strip resize query params
+      if (u.searchParams.has("width")) u.searchParams.set("width", "5000");
+      else if (u.searchParams.has("w")) u.searchParams.set("w", "5000");
+      ["h", "height", "size", "resize", "fit", "crop",
+       "dpr", "q", "quality", "auto", "format", "fm", "fl",
+       "max-w", "max-h", "min-w", "min-h"].forEach(function (p) { u.searchParams.delete(p); });
+      // WordPress: remove -312x468 from filename
+      u.pathname = u.pathname.replace(/-\d+x\d+(\.\w+)$/, "$1");
+      // Cloudinary: remove /w_312/ or /c_scale,w_312,h_468/ etc from path
+      u.pathname = u.pathname.replace(/\/[cwh]_\d+[^/]*/g, "");
+      u.pathname = u.pathname.replace(/\/c_[^/]+/g, "");
+      // Next.js /_next/image proxy: extract original URL
+      if (u.pathname === "/_next/image" && u.searchParams.has("url")) {
+        var orig = u.searchParams.get("url");
+        u.searchParams.delete("url");
+        try { return new URL(orig, u.origin).href; } catch(e) { return orig; }
+      }
+      return u.href;
+    } catch (e) { return url; }
+  }
+
   function addMedia(url, type, extra) {
     var resolved = resolveUrl(url); if (!resolved) return;
+    if (type === "images") resolved = stripResizeParams(resolved);
     var ext = getExt(resolved);
     var item = { url: resolved, type: type, ext: ext.toUpperCase(), filename: getFilename(resolved) };
     if (extra) { if (extra.width) item.width = extra.width; if (extra.height) item.height = extra.height; if (extra.svgData) item.svgData = extra.svgData; if (extra.inline) item.inline = extra.inline; if (extra.thumb) item.thumb = extra.thumb; }
@@ -108,17 +146,61 @@ async function extractMedia() {
     });
   }
 
+  function parseSrcset(srcset) {
+    if (!srcset) return [];
+    return srcset.split(",").map(function (entry) {
+      var parts = entry.trim().split(/\s+/);
+      var url = parts[0];
+      var descriptor = parts[1] || "";
+      var width = 0;
+      if (descriptor.endsWith("w")) width = parseInt(descriptor) || 0;
+      else if (descriptor.endsWith("x")) width = (parseFloat(descriptor) || 1) * 1000;
+      return { url: url, width: width };
+    }).filter(function (e) { return e.url && !e.url.startsWith("data:"); });
+  }
+
+  function getBestSrc(img) {
+    var candidates = [];
+    // currentSrc is the URL the browser actually loaded (may be from srcset)
+    var currentSrc = img.currentSrc;
+    if (currentSrc && !currentSrc.startsWith("data:")) candidates.push({ url: currentSrc, width: img.naturalWidth || 0 });
+    // src attribute is the fallback — give it score 0 so srcset wins
+    var src = img.getAttribute("src");
+    if (src && !src.startsWith("data:") && resolveUrl(src) !== resolveUrl(currentSrc)) candidates.push({ url: src, width: 0 });
+
+    var srcset = img.getAttribute("srcset");
+    parseSrcset(srcset).forEach(function (c) { candidates.push(c); });
+
+    var parent = img.closest("picture");
+    if (parent) {
+      parent.querySelectorAll("source").forEach(function (source) {
+        parseSrcset(source.getAttribute("srcset")).forEach(function (c) { candidates.push(c); });
+      });
+    }
+
+    ["data-src", "data-original", "data-full", "data-full-src", "data-hi-res", "data-large-src", "data-original-src"].forEach(function (attr) {
+      var val = img.getAttribute(attr);
+      if (val && !val.startsWith("data:")) candidates.push({ url: val, width: 9999 });
+    });
+
+    if (candidates.length === 0) return null;
+    candidates.sort(function (a, b) { return b.width - a.width; });
+    return candidates[0].url;
+  }
+
   var imgElements = document.querySelectorAll("img");
   var thumbMap = {};
 
   imgElements.forEach(function (img) {
-    var src = img.currentSrc || img.src;
-    if (!src || src.startsWith("data:")) return;
+    var bestSrc = getBestSrc(img);
+    var displaySrc = img.currentSrc || img.src;
+    if (!bestSrc && !displaySrc) return;
+    if (!bestSrc) bestSrc = displaySrc;
+    if (!displaySrc || displaySrc.startsWith("data:")) displaySrc = bestSrc;
     var thumb = captureFromDom(img);
-    var resolved = resolveUrl(src);
+    var resolved = resolveUrl(bestSrc);
     if (resolved) thumbMap[resolved] = { thumb: thumb, el: img };
-    addMedia(src, getExt(src) === "svg" ? "svgs" : "images", { width: img.naturalWidth, height: img.naturalHeight, thumb: thumb });
-    if (img.srcset) { img.srcset.split(",").forEach(function (entry) { var p = entry.trim().split(/\s+/); if (p[0]) { var u = resolveUrl(p[0]); if (u && !u.startsWith("data:")) addMedia(p[0], getExt(u) === "svg" ? "svgs" : "images"); } }); }
+    addMedia(bestSrc, getExt(bestSrc) === "svg" ? "svgs" : "images", { width: img.naturalWidth, height: img.naturalHeight, thumb: thumb });
   });
 
   var corsNeeded = [];
@@ -136,9 +218,7 @@ async function extractMedia() {
     await Promise.all(promises);
   }
 
-  document.querySelectorAll("picture source").forEach(function (source) {
-    if (source.srcset) { source.srcset.split(",").forEach(function (entry) { var url = entry.trim().split(/\s+/)[0]; if (url) { var ext = getExt(url); addMedia(url, ext === "svg" ? "svgs" : vidExts.indexOf(ext) !== -1 ? "videos" : audExts.indexOf(ext) !== -1 ? "audio" : "images"); } }); }
-  });
+  /* picture sources already handled in getBestSrc above */
   document.querySelectorAll("video").forEach(function (vid) {
     if (vid.src) addMedia(vid.src, "videos", { width: vid.videoWidth, height: vid.videoHeight });
     vid.querySelectorAll("source").forEach(function (s) { if (s.src) addMedia(s.src, "videos"); });
